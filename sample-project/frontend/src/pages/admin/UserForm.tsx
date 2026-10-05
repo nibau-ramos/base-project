@@ -1,15 +1,15 @@
-import { AlertTriangle, ArrowLeft, Lock, Mail, RotateCcw, ShieldCheck } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Mail, RotateCcw } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, errorMessage } from '../../lib/api'
-import { ROLE_LABELS, useCurrentUser, type Role, type User } from '../../lib/auth'
+import { hasMfa, ROLE_LABELS, useCurrentUser, type Role, type User } from '../../lib/auth'
 import { formatDate } from '../../lib/dates'
 import { Button } from '../../ui/Button'
 import { Alert, Badge, Spinner } from '../../ui/feedback'
 import { ChoiceGroup, PasswordField, TextField, Toggle } from '../../ui/form'
 import { Card, PageHeader } from '../../ui/layout'
-import { assignableRoles } from './Users'
-import { DeleteUserModal, ResetOtpModal, WelcomeModal } from './userModals'
+import { assignableRoles, MfaStatus } from './Users'
+import { DeleteUserModal, ResetMfaModal, WelcomeModal } from './userModals'
 
 const ROLE_HINTS: Record<Role, string> = {
   super_admin: 'Acesso total, incluindo gerir outros super administradores.',
@@ -22,7 +22,7 @@ interface Fields {
   name: string
   role: Role
   active: boolean
-  otpRequired: boolean
+  mfaRequired: boolean
   password: string
 }
 
@@ -39,14 +39,14 @@ export default function UserForm() {
     name: '',
     role: 'normal',
     active: true,
-    otpRequired: false,
+    mfaRequired: false,
     password: '',
   })
   const [loadError, setLoadError] = useState('')
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
-  const [modal, setModal] = useState<'welcome' | 'delete' | 'reset-otp' | null>(null)
+  const [modal, setModal] = useState<'welcome' | 'delete' | 'reset-mfa' | null>(null)
 
   useEffect(() => {
     if (!isEdit) return
@@ -58,7 +58,7 @@ export default function UserForm() {
           name: user.name,
           role: user.role,
           active: user.active,
-          otpRequired: user.otpRequired,
+          mfaRequired: user.mfaRequired,
           password: '',
         })
       })
@@ -76,7 +76,7 @@ export default function UserForm() {
       if (isEdit) {
         const { user: saved } = await api<{ user: User }>(`/users/${id}`, {
           method: 'PUT',
-          body: { name: fields.name, role: fields.role, active: fields.active, otpRequired: fields.otpRequired },
+          body: { name: fields.name, role: fields.role, active: fields.active, mfaRequired: fields.mfaRequired },
         })
         setUser(saved)
         setMessage('Alterações guardadas.')
@@ -88,7 +88,7 @@ export default function UserForm() {
             name: fields.name,
             role: fields.role,
             password: fields.password,
-            otpRequired: fields.otpRequired,
+            mfaRequired: fields.mfaRequired,
           },
         })
         navigate(`/admin/users/${created.id}`, { replace: true })
@@ -125,8 +125,8 @@ export default function UserForm() {
       {modal === 'delete' && user && (
         <DeleteUserModal user={user} onClose={() => setModal(null)} onDeleted={() => navigate('/admin/users', { replace: true })} />
       )}
-      {modal === 'reset-otp' && user && (
-        <ResetOtpModal
+      {modal === 'reset-mfa' && user && (
+        <ResetMfaModal
           user={user}
           onClose={() => setModal(null)}
           onReset={(updated, msg) => {
@@ -225,45 +225,37 @@ export default function UserForm() {
         </Card>
 
         <Card
-          title="Verificação em dois passos (OTP)"
-          actions={
-            user && (
-              <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                {user.otpRequired && <Badge variant="primary" icon={<Lock size={12} />}>Obrigatório</Badge>}
-                {user.otpEnabled ? (
-                  <Badge variant="success" icon={<ShieldCheck size={12} />}>Ativo</Badge>
-                ) : (
-                  <Badge variant={user.otpRequired ? 'warning' : 'neutral'}>{user.otpRequired ? 'Por configurar' : 'Inativo'}</Badge>
-                )}
-              </div>
-            )
-          }
+          title="Verificação em dois passos (MFA)"
+          description="Impressão digital (Touch ID, Windows Hello) ou código de uma aplicação autenticadora."
+          actions={user && <MfaStatus user={user} />}
         >
           <div className="space-y-4">
             {isSelf ? (
               <p className="text-sm text-text-muted">
-                O teu OTP gere-se em <Link to="/admin/profile" className="text-primary font-medium hover:underline">O meu perfil</Link>.
+                A tua verificação em dois passos gere-se em{' '}
+                <Link to="/admin/profile" className="text-primary font-medium hover:underline">O meu perfil</Link>.
               </p>
             ) : (
               <Toggle
-                label="Exigir OTP nesta conta"
+                label="Exigir verificação em dois passos"
                 description={
-                  fields.otpRequired
-                    ? 'A pessoa não pode desativar o OTP. Se ainda não o tiver, é obrigada a configurá-lo no próximo login (as sessões abertas terminam).'
-                    : 'Quando ativo, a pessoa não pode desativar o OTP e tem de o configurar antes de entrar.'
+                  fields.mfaRequired
+                    ? 'A pessoa tem de manter a impressão digital ou a aplicação autenticadora (pelo menos uma). Se ainda não tiver nenhuma, escolhe e configura uma no próximo login (as sessões abertas terminam).'
+                    : 'Quando ativo, a pessoa é obrigada a ter impressão digital ou aplicação autenticadora e não pode ficar sem nenhuma.'
                 }
-                checked={fields.otpRequired}
-                onChange={(v) => set('otpRequired', v)}
+                checked={fields.mfaRequired}
+                onChange={(v) => set('mfaRequired', v)}
               />
             )}
-            {isEdit && user && !isSelf && user.otpEnabled && (
+            {isEdit && user && !isSelf && hasMfa(user) && (
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-border">
                 <p className="text-sm text-text-muted">
-                  Perdeu o telemóvel? Repor remove o OTP atual e termina as sessões abertas.
-                  {user.otpRequired && ' Como é obrigatório, volta a configurá-lo no próximo login.'}
+                  Perdeu o telemóvel ou o computador? Repor remove a aplicação e as impressões digitais registadas e termina as
+                  sessões abertas.
+                  {user.mfaRequired && ' Como é obrigatória, volta a configurá-la no próximo login.'}
                 </p>
-                <Button type="button" variant="destructive-outline" size="sm" icon={<RotateCcw size={13} />} onClick={() => setModal('reset-otp')}>
-                  Repor OTP
+                <Button type="button" variant="destructive-outline" size="sm" icon={<RotateCcw size={13} />} onClick={() => setModal('reset-mfa')}>
+                  Repor MFA
                 </Button>
               </div>
             )}

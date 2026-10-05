@@ -9,9 +9,12 @@ export interface User {
   name: string
   role: Role
   active: boolean
+  /** TOTP (authenticator app) is active. */
   otpEnabled: boolean
-  /** Set by an admin: the user can't disable OTP and must set it up at login. */
-  otpRequired: boolean
+  /** Number of registered fingerprints (WebAuthn credentials). */
+  passkeyCount: number
+  /** Set by an admin: the user must keep at least one second factor (TOTP or fingerprint) and set one up at login. */
+  mfaRequired: boolean
   createdAt: string
   lastLoginAt: string | null
 }
@@ -33,6 +36,9 @@ export const ROLE_LABELS: Record<Role, string> = {
 }
 
 export const isAdmin = (user: User | null | undefined) => user?.role === 'admin' || user?.role === 'super_admin'
+
+/** At least one second factor (TOTP or fingerprint) is set up. */
+export const hasMfa = (user: User) => user.otpEnabled || user.passkeyCount > 0
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null | undefined>(undefined)

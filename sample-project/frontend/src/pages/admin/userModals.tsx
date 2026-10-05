@@ -59,7 +59,7 @@ export function WelcomeModal({ user, onClose, onSent }: { user: User; onClose: (
   )
 }
 
-export function ResetOtpModal({
+export function ResetMfaModal({
   user,
   onClose,
   onReset,
@@ -75,7 +75,7 @@ export function ResetOtpModal({
     setError('')
     setBusy(true)
     try {
-      const data = await api<{ user: User; message: string }>(`/users/${user.id}/otp/reset`, { method: 'POST' })
+      const data = await api<{ user: User; message: string }>(`/users/${user.id}/mfa/reset`, { method: 'POST' })
       onReset(data.user, data.message)
     } catch (err) {
       setError(errorMessage(err))
@@ -85,22 +85,22 @@ export function ResetOtpModal({
 
   return (
     <Modal
-      title="Repor OTP"
+      title="Repor verificação em dois passos"
       onClose={onClose}
       footer={
         <>
           <Button variant="subtle" onClick={onClose}>Cancelar</Button>
-          <Button variant="destructive" onClick={reset} loading={busy} icon={<RotateCcw size={15} />}>Repor OTP</Button>
+          <Button variant="destructive" onClick={reset} loading={busy} icon={<RotateCcw size={15} />}>Repor MFA</Button>
         </>
       }
     >
       <Alert>{error}</Alert>
       <p className="text-sm text-text-muted">
-        O OTP de <strong className="text-text-base">{user.name || user.email}</strong> vai ser removido e as sessões
-        abertas terminam.{' '}
-        {user.otpRequired
-          ? 'Como o OTP é obrigatório, no próximo login vai ter de o configurar de novo.'
-          : 'No próximo login entra só com a password e pode voltar a ativar o OTP no perfil.'}
+        A aplicação autenticadora e as impressões digitais de <strong className="text-text-base">{user.name || user.email}</strong>{' '}
+        vão ser removidas e as sessões abertas terminam.{' '}
+        {user.mfaRequired
+          ? 'Como a verificação em dois passos é obrigatória, no próximo login vai ter de configurar um método de novo.'
+          : 'No próximo login entra só com a password e pode voltar a ativar a verificação no perfil.'}
       </p>
       <p className="text-xs text-text-muted">A pessoa recebe um e-mail a avisar desta alteração.</p>
     </Modal>

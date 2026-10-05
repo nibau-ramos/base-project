@@ -13,6 +13,7 @@
     "node": ">=22"
   },
   "dependencies": {
+    "@simplewebauthn/server": "^13.3.3",
     "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",
     "express": "^5.1.0",

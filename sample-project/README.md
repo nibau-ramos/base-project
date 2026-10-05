@@ -47,4 +47,4 @@ cd frontend && npm run build   # typecheck (tsc) + Vite build
   - Light/dark mode toggle everywhere; the four theme colors come from Settings → Branding.
 - `frontend/public/enso/`: official ENSO ORIGINS logos (from the style guide), used for "Powered by ENSO".
 
-Fingerprint (WebAuthn) login is marked optional in the spec and is not implemented.
+Two-step verification supports an authenticator app (TOTP) and fingerprint (WebAuthn: Touch ID, Windows Hello…). Admins can make it mandatory per account. Fingerprints are bound to the domain in `APP_URL` (or `WEBAUTHN_RP_ID`); in production the site must be served over HTTPS.

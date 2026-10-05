@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { config } from '../config.js';
 import { query } from '../db.js';
+import { findUserById } from './users.js';
 
 export const SESSION_COOKIE = 'session';
 export const OTP_PENDING_COOKIE = 'otp_pending';
@@ -24,7 +25,8 @@ export function publicUser(row) {
     role: row.role,
     active: row.active,
     otpEnabled: row.otp_enabled,
-    otpRequired: row.otp_required,
+    passkeyCount: row.passkey_count ?? 0,
+    mfaRequired: row.mfa_required,
     createdAt: row.created_at,
     lastLoginAt: row.last_login_at,
   };
@@ -68,8 +70,7 @@ export async function requireAuth(req, res, next) {
   }
   if (payload.purpose !== 'session') return res.status(401).json({ error: 'Sessão inválida ou expirada.' });
 
-  const { rows } = await query('SELECT * FROM users WHERE id = $1', [payload.sub]);
-  const user = rows[0];
+  const user = await findUserById(payload.sub);
   if (!user || !user.active || user.token_version !== payload.tv) {
     endSession(res);
     return res.status(401).json({ error: 'Sessão inválida ou expirada.' });

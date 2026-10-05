@@ -1,8 +1,8 @@
-import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, Lock, Mail, Pencil, Plus, Search, ShieldCheck, Trash2, XCircle } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, Fingerprint, Lock, Mail, Pencil, Plus, Search, ShieldCheck, Smartphone, Trash2, XCircle } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, errorMessage } from '../../lib/api'
-import { ROLE_LABELS, useCurrentUser, type Role, type User } from '../../lib/auth'
+import { hasMfa, ROLE_LABELS, useCurrentUser, type Role, type User } from '../../lib/auth'
 import { formatDate } from '../../lib/dates'
 import { Button, ButtonLink, IconButton } from '../../ui/Button'
 import { Alert, Badge, Spinner } from '../../ui/feedback'
@@ -23,15 +23,28 @@ function StatusBadge({ user }: { user: User }) {
   )
 }
 
-function OtpBadge({ user }: { user: User }) {
-  if (user.otpEnabled) {
+/** MFA state in one badge, for the users list (compact). */
+function MfaBadge({ user }: { user: User }) {
+  if (hasMfa(user)) {
     return (
-      <Badge variant="primary" icon={user.otpRequired ? <Lock size={12} /> : <ShieldCheck size={12} />}>
-        {user.otpRequired ? 'OTP obrigatório' : 'OTP'}
+      <Badge variant="primary" icon={user.mfaRequired ? <Lock size={12} /> : <ShieldCheck size={12} />}>
+        {user.mfaRequired ? 'MFA obrigatório' : 'MFA'}
       </Badge>
     )
   }
-  return user.otpRequired ? <Badge variant="warning" icon={<Lock size={12} />}>OTP por configurar</Badge> : null
+  return user.mfaRequired ? <Badge variant="warning" icon={<Lock size={12} />}>MFA por configurar</Badge> : null
+}
+
+/** Detailed MFA state (methods in use), for the user form header. */
+export function MfaStatus({ user }: { user: User }) {
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap justify-end">
+      {user.mfaRequired && <Badge variant="primary" icon={<Lock size={12} />}>Obrigatória</Badge>}
+      {user.passkeyCount > 0 && <Badge variant="success" icon={<Fingerprint size={12} />}>Impressão digital{user.passkeyCount > 1 ? ` (${user.passkeyCount})` : ''}</Badge>}
+      {user.otpEnabled && <Badge variant="success" icon={<Smartphone size={12} />}>Aplicação</Badge>}
+      {!hasMfa(user) && <Badge variant={user.mfaRequired ? 'warning' : 'neutral'}>{user.mfaRequired ? 'Por configurar' : 'Inativa'}</Badge>}
+    </div>
+  )
 }
 
 export default function Users() {
@@ -78,7 +91,7 @@ export default function Users() {
   const counts = {
     active: users.filter((u) => u.active).length,
     inactive: users.filter((u) => !u.active).length,
-    otp: users.filter((u) => u.otpEnabled).length,
+    otp: users.filter(hasMfa).length,
   }
 
   const SortHeader = ({ col, label }: { col: SortKey; label: string }) => (
@@ -154,7 +167,7 @@ export default function Users() {
         {[
           { label: 'Ativos', count: counts.active, cls: 'text-green-700 dark:text-green-300' },
           { label: 'Inativos', count: counts.inactive, cls: 'text-red-700 dark:text-red-300' },
-          { label: 'Com OTP', count: counts.otp, cls: 'text-primary' },
+          { label: 'Com MFA', count: counts.otp, cls: 'text-primary' },
         ].map(({ label, count, cls }) => (
           <div key={label} className="rounded-xl border border-border bg-surface px-4 py-3">
             <p className={`text-xl font-bold ${cls}`}>{count}</p>
@@ -231,7 +244,7 @@ export default function Users() {
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <StatusBadge user={u} />
-                      <OtpBadge user={u} />
+                      <MfaBadge user={u} />
                     </div>
                   </td>
                   <td className="py-3 px-4 text-text-muted whitespace-nowrap">{formatDate(u.lastLoginAt, 'datetime') || '—'}</td>
@@ -258,7 +271,7 @@ export default function Users() {
             <div className="flex items-center gap-1.5 flex-wrap mt-3">
               <Badge variant="neutral">{ROLE_LABELS[u.role]}</Badge>
               <StatusBadge user={u} />
-              <OtpBadge user={u} />
+              <MfaBadge user={u} />
             </div>
             <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-border">
               <span className="text-xs text-text-muted">Último acesso: {formatDate(u.lastLoginAt, 'datetime') || '—'}</span>

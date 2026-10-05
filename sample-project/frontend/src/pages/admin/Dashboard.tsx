@@ -1,6 +1,6 @@
 import { ArrowRight, KeyRound, Mail, Palette, ShieldCheck, Users, type LucideIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { isAdmin, ROLE_LABELS, useCurrentUser } from '../../lib/auth'
+import { hasMfa, isAdmin, ROLE_LABELS, useCurrentUser } from '../../lib/auth'
 import { formatDate } from '../../lib/dates'
 import { Badge } from '../../ui/feedback'
 import { Card, PageHeader } from '../../ui/layout'
@@ -17,7 +17,7 @@ const SHORTCUTS: Shortcut[] = [
   { to: '/admin/users', icon: Users, title: 'Utilizadores', text: 'Criar contas, perfis e e-mails de boas-vindas.', adminOnly: true },
   { to: '/admin/settings/email', icon: Mail, title: 'Envio de e-mail', text: 'Servidor SMTP e e-mail de teste.', adminOnly: true },
   { to: '/admin/settings/branding', icon: Palette, title: 'Branding', text: 'Logótipo, título, cliente e cores.', adminOnly: true },
-  { to: '/admin/profile', icon: KeyRound, title: 'O meu perfil', text: 'Alterar password e configurar o OTP.' },
+  { to: '/admin/profile', icon: KeyRound, title: 'O meu perfil', text: 'Alterar password, impressão digital e aplicação autenticadora.' },
 ]
 
 export default function Dashboard() {
@@ -62,7 +62,7 @@ export default function Dashboard() {
           <div>
             <dt className="text-xs text-text-muted">Verificação em dois passos</dt>
             <dd className="mt-1">
-              {user.otpEnabled ? (
+              {hasMfa(user) ? (
                 <Badge variant="success" icon={<ShieldCheck size={12} />}>Ativa</Badge>
               ) : (
                 <Badge variant="warning">Inativa</Badge>

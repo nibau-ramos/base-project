@@ -36,6 +36,9 @@ services:
       # Dev only: shows links to the Mailpit inbox in the front-end. Leave empty in production.
       MAILPIT_URL: ${MAILPIT_URL-http://localhost:${MAILPIT_PORT:-8025}}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      # Fingerprint (WebAuthn): domain and origin the credentials are bound to. Empty = derived from APP_URL.
+      WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:-}
+      WEBAUTHN_ORIGIN: ${WEBAUTHN_ORIGIN:-}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@exemplo.pt}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin12345}
       ADMIN_NAME: ${ADMIN_NAME:-Administrador}

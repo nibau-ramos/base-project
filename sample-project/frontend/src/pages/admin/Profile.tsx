@@ -1,11 +1,14 @@
-import { KeyRound, Lock, ShieldCheck, ShieldOff } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { Fingerprint, KeyRound, Laptop, Lock, ShieldCheck, ShieldOff, Smartphone, Trash2 } from 'lucide-react'
+import { useEffect, useState, type FormEvent } from 'react'
+import TotpSetupForm from '../../components/TotpSetupForm'
 import { api, errorMessage } from '../../lib/api'
-import { ROLE_LABELS, useAuth, useCurrentUser, type User } from '../../lib/auth'
-import { Button } from '../../ui/Button'
+import { hasMfa, ROLE_LABELS, useAuth, useCurrentUser, type User } from '../../lib/auth'
+import { formatDate } from '../../lib/dates'
+import { defaultDeviceName, fingerprintSupported, registerFingerprint } from '../../lib/webauthn'
+import { Button, IconButton } from '../../ui/Button'
 import { Alert, Badge } from '../../ui/feedback'
 import { PasswordField, TextField } from '../../ui/form'
-import { Avatar, Card, PageHeader } from '../../ui/layout'
+import { Avatar, Card, Modal, PageHeader } from '../../ui/layout'
 
 function ChangePassword() {
   const empty = { currentPassword: '', newPassword: '', confirmPassword: '' }
@@ -57,126 +60,265 @@ function ChangePassword() {
   )
 }
 
-function Otp() {
-  const user = useCurrentUser()
-  const { setUser } = useAuth()
-  const [setup, setSetup] = useState<{ qr: string; secret: string } | null>(null)
-  const [code, setCode] = useState('')
-  const [password, setPassword] = useState('')
+interface Passkey {
+  id: number
+  name: string
+  deviceType: string | null
+  backedUp: boolean
+  createdAt: string
+  lastUsedAt: string | null
+}
+
+function useRunner() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
-
-  async function run(fn: () => Promise<void>) {
+  async function run(fn: () => Promise<string | void>) {
     setError('')
     setMessage('')
     setBusy(true)
     try {
-      await fn()
+      setMessage((await fn()) || '')
     } catch (err) {
       setError(errorMessage(err))
     } finally {
       setBusy(false)
     }
   }
+  return { error, message, busy, run }
+}
 
-  const status = (
-    <div className="flex items-center gap-1.5 flex-wrap justify-end">
-      {user.otpRequired && <Badge variant="primary" icon={<Lock size={12} />}>Obrigatório</Badge>}
-      {user.otpEnabled ? (
-        <Badge variant="success" icon={<ShieldCheck size={12} />}>Ativo</Badge>
-      ) : (
-        <Badge variant="warning">Inativo</Badge>
-      )}
-    </div>
-  )
+/** True when removing one factor would leave a mandatory-MFA account with none. */
+const isLastFactor = (user: User, kind: 'totp' | 'passkey') =>
+  user.mfaRequired && (kind === 'totp' ? user.passkeyCount === 0 : !user.otpEnabled && user.passkeyCount <= 1)
+
+const LAST_FACTOR_HINT = 'É o único método ativo e a verificação em dois passos é obrigatória nesta conta. Adiciona outro método para poderes remover este.'
+
+function TotpSection() {
+  const user = useCurrentUser()
+  const { setUser } = useAuth()
+  const { error, message, busy, run } = useRunner()
+  const [setup, setSetup] = useState<{ qr: string; secret: string } | null>(null)
+  const [password, setPassword] = useState('')
+  const locked = isLastFactor(user, 'totp')
 
   return (
-    <Card title="Verificação em dois passos (OTP)" description="Um código da aplicação autenticadora a cada login." actions={status}>
-      <div className="space-y-4">
-        <Alert>{error}</Alert>
-        {message && <Alert type="success">{message}</Alert>}
+    <section className="space-y-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3 min-w-0">
+          <span className="p-2 rounded-lg bg-primary/10 text-primary flex-shrink-0"><Smartphone size={16} /></span>
+          <div>
+            <h3 className="text-sm font-semibold text-text-base">Aplicação autenticadora</h3>
+            <p className="text-xs text-text-muted mt-0.5">Código de 6 dígitos gerado no telemóvel.</p>
+          </div>
+        </div>
+        {user.otpEnabled ? <Badge variant="success" icon={<ShieldCheck size={12} />}>Ativa</Badge> : <Badge>Inativa</Badge>}
+      </div>
+      <Alert>{error}</Alert>
+      {message && <Alert type="success">{message}</Alert>}
 
-        {user.otpEnabled && user.otpRequired ? (
-          <Alert type="info" title="OTP obrigatório">
-            Um administrador definiu que esta conta tem de usar verificação em dois passos, por isso não pode ser
-            desativada. Se perderes o acesso à aplicação autenticadora, pede a um administrador para repor o teu OTP.
-          </Alert>
-        ) : user.otpEnabled ? (
+      {user.otpEnabled ? (
+        locked ? (
+          <p className="text-xs text-text-muted flex items-start gap-1.5"><Lock size={12} className="mt-0.5 flex-shrink-0" /> {LAST_FACTOR_HINT}</p>
+        ) : (
           <form
-            className="space-y-4"
+            className="space-y-3"
             onSubmit={(e) => {
               e.preventDefault()
               run(async () => {
                 setUser((await api<{ user: User }>('/profile/otp/disable', { method: 'POST', body: { password } })).user)
                 setPassword('')
-                setMessage('OTP desativado.')
+                return 'Aplicação autenticadora desativada.'
               })
             }}
           >
-            <PasswordField
-              label="Confirma a tua password para desativar"
-              value={password}
-              onChange={setPassword}
-              autoComplete="current-password"
-              required
-            />
+            <PasswordField label="Confirma a tua password para desativar" value={password} onChange={setPassword} autoComplete="current-password" required />
             <div className="flex justify-end">
-              <Button type="submit" variant="destructive-outline" loading={busy} icon={<ShieldOff size={15} />}>
-                Desativar OTP
+              <Button type="submit" size="sm" variant="destructive-outline" loading={busy} icon={<ShieldOff size={13} />}>
+                Desativar
               </Button>
             </div>
           </form>
-        ) : setup ? (
-          <form
-            className="space-y-4"
-            onSubmit={(e) => {
-              e.preventDefault()
-              run(async () => {
-                setUser((await api<{ user: User }>('/profile/otp/confirm', { method: 'POST', body: { code } })).user)
-                setSetup(null)
-                setCode('')
-                setMessage('OTP ativado. A partir de agora, será pedido um código ao entrar.')
-              })
-            }}
-          >
-            <p className="text-sm text-text-muted">
-              Lê o código QR com uma aplicação autenticadora (Google Authenticator, Microsoft Authenticator, 1Password…) e
-              introduz o código gerado para confirmar.
-            </p>
-            <div className="flex flex-col items-center gap-2">
-              <img src={setup.qr} alt="Código QR para configurar o OTP" className="w-48 h-48 rounded-xl border border-border bg-white p-2" />
-              <p className="text-xs text-text-muted text-center break-all">
-                Chave manual: <code className="font-mono text-text-base">{setup.secret}</code>
-              </p>
-            </div>
-            <TextField
-              label="Código"
-              value={code}
-              onChange={setCode}
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={7}
-              required
-              className="tracking-[0.4em] text-center font-mono text-base"
-            />
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="subtle" onClick={() => setSetup(null)}>Cancelar</Button>
-              <Button type="submit" loading={busy}>Confirmar e ativar</Button>
-            </div>
-          </form>
-        ) : (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <p className="text-sm text-text-muted">Protege a tua conta com um código adicional gerado no telemóvel.</p>
-            <Button
-              loading={busy}
-              icon={<ShieldCheck size={15} />}
-              onClick={() => run(async () => setSetup(await api<{ qr: string; secret: string }>('/profile/otp/setup', { method: 'POST' })))}
-            >
-              Ativar OTP
-            </Button>
+        )
+      ) : setup ? (
+        <TotpSetupForm
+          qr={setup.qr}
+          secret={setup.secret}
+          onConfirm={(code) =>
+            run(async () => {
+              setUser((await api<{ user: User }>('/profile/otp/confirm', { method: 'POST', body: { code } })).user)
+              setSetup(null)
+              return 'Aplicação autenticadora ativada.'
+            })
+          }
+        >
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="subtle" size="sm" onClick={() => setSetup(null)}>Cancelar</Button>
+            <Button type="submit" size="sm" loading={busy}>Confirmar e ativar</Button>
           </div>
+        </TotpSetupForm>
+      ) : (
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            variant="outline"
+            loading={busy}
+            icon={<Smartphone size={13} />}
+            onClick={() => run(async () => setSetup(await api<{ qr: string; secret: string }>('/profile/otp/setup', { method: 'POST' })))}
+          >
+            Ativar aplicação
+          </Button>
+        </div>
+      )}
+    </section>
+  )
+}
+
+function FingerprintSection() {
+  const user = useCurrentUser()
+  const { setUser } = useAuth()
+  const { error, message, busy, run } = useRunner()
+  const [passkeys, setPasskeys] = useState<Passkey[] | null>(null)
+  const [name, setName] = useState(defaultDeviceName())
+  const [removing, setRemoving] = useState<Passkey | null>(null)
+  const supported = fingerprintSupported()
+  const locked = isLastFactor(user, 'passkey')
+
+  useEffect(() => {
+    api<{ passkeys: Passkey[] }>('/profile/passkeys').then((d) => setPasskeys(d.passkeys))
+  }, [])
+
+  const apply = (d: { user: User; passkeys: Passkey[] }) => {
+    setUser(d.user)
+    setPasskeys(d.passkeys)
+  }
+
+  return (
+    <section className="space-y-4">
+      {removing && (
+        <Modal
+          title="Remover impressão digital"
+          onClose={() => setRemoving(null)}
+          footer={
+            <>
+              <Button variant="subtle" onClick={() => setRemoving(null)}>Cancelar</Button>
+              <Button
+                variant="destructive"
+                loading={busy}
+                icon={<Trash2 size={15} />}
+                onClick={() =>
+                  run(async () => {
+                    apply(await api<{ user: User; passkeys: Passkey[] }>(`/profile/passkeys/${removing.id}`, { method: 'DELETE' }))
+                    setRemoving(null)
+                    return 'Impressão digital removida.'
+                  })
+                }
+              >
+                Remover
+              </Button>
+            </>
+          }
+        >
+          <p className="text-sm text-text-muted">
+            Deixas de poder entrar com a impressão digital de <strong className="text-text-base">{removing.name}</strong>.
+          </p>
+        </Modal>
+      )}
+
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3 min-w-0">
+          <span className="p-2 rounded-lg bg-primary/10 text-primary flex-shrink-0"><Fingerprint size={16} /></span>
+          <div>
+            <h3 className="text-sm font-semibold text-text-base">Impressão digital</h3>
+            <p className="text-xs text-text-muted mt-0.5">Touch ID, Windows Hello ou o sensor do computador.</p>
+          </div>
+        </div>
+        {user.passkeyCount > 0 ? (
+          <Badge variant="success" icon={<ShieldCheck size={12} />}>{user.passkeyCount === 1 ? '1 dispositivo' : `${user.passkeyCount} dispositivos`}</Badge>
+        ) : (
+          <Badge>Inativa</Badge>
         )}
+      </div>
+      <Alert>{error}</Alert>
+      {message && <Alert type="success">{message}</Alert>}
+
+      {passkeys && passkeys.length > 0 && (
+        <ul className="rounded-xl border border-border divide-y divide-border bg-bg">
+          {passkeys.map((p) => (
+            <li key={p.id} className="flex items-center gap-3 px-3 py-2.5">
+              <Laptop size={16} className="text-text-muted flex-shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-text-base truncate">
+                  {p.name}
+                  {p.backedUp && <span className="ml-2 text-xs font-normal text-text-muted">sincronizada</span>}
+                </p>
+                <p className="text-xs text-text-muted">
+                  Registada em {formatDate(p.createdAt)} · {p.lastUsedAt ? `último uso ${formatDate(p.lastUsedAt, 'datetime')}` : 'ainda não usada'}
+                </p>
+              </div>
+              <IconButton
+                label={locked ? LAST_FACTOR_HINT : 'Remover'}
+                tone="danger"
+                disabled={locked}
+                className="disabled:opacity-40 disabled:pointer-events-none"
+                onClick={() => setRemoving(p)}
+              >
+                <Trash2 size={15} />
+              </IconButton>
+            </li>
+          ))}
+        </ul>
+      )}
+      {locked && <p className="text-xs text-text-muted flex items-start gap-1.5"><Lock size={12} className="mt-0.5 flex-shrink-0" /> {LAST_FACTOR_HINT}</p>}
+
+      {supported ? (
+        <form
+          className="flex flex-col sm:flex-row sm:items-end gap-3"
+          onSubmit={(e) => {
+            e.preventDefault()
+            run(async () => {
+              apply(await registerFingerprint<{ user: User; passkeys: Passkey[] }>('/profile/passkeys', name))
+              return 'Impressão digital registada. Já a podes usar no login.'
+            })
+          }}
+        >
+          <div className="flex-1">
+            <TextField label="Nome deste computador" value={name} onChange={setName} maxLength={60} required />
+          </div>
+          <Button type="submit" size="md" variant="outline" loading={busy} icon={<Fingerprint size={15} />}>
+            Registar este computador
+          </Button>
+        </form>
+      ) : (
+        <Alert type="info">Este browser não suporta impressão digital (WebAuthn).</Alert>
+      )}
+    </section>
+  )
+}
+
+function Mfa() {
+  const user = useCurrentUser()
+  return (
+    <Card
+      title="Verificação em dois passos"
+      description="Além da password, pede a impressão digital ou um código da aplicação a cada login."
+      actions={
+        <div className="flex items-center gap-1.5 flex-wrap justify-end">
+          {user.mfaRequired && <Badge variant="primary" icon={<Lock size={12} />}>Obrigatória</Badge>}
+          {hasMfa(user) ? <Badge variant="success" icon={<ShieldCheck size={12} />}>Ativa</Badge> : <Badge variant="warning">Inativa</Badge>}
+        </div>
+      }
+    >
+      <div className="space-y-6">
+        {user.mfaRequired && (
+          <Alert type="info" title="Obrigatória nesta conta">
+            Um administrador definiu que esta conta tem de usar verificação em dois passos. Podes usar a impressão digital,
+            a aplicação autenticadora ou ambas, mas tens de manter pelo menos uma.
+          </Alert>
+        )}
+        <FingerprintSection />
+        <div className="border-t border-border" />
+        <TotpSection />
       </div>
     </Card>
   )
@@ -201,7 +343,7 @@ export default function Profile() {
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
         <ChangePassword />
-        <Otp />
+        <Mfa />
       </div>
     </>
   )
