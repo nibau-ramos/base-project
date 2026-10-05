@@ -1,80 +1,79 @@
-# language: pt
 @base @ui
-Funcionalidade: Interface, tipografia e formatação
+Feature: Interface, tipografia e formatação
   Como utilizador
   Quero uma interface consistente e utilizável em qualquer dispositivo
   Para trabalhar a partir do computador, tablet ou telemóvel
 
   # ── Identidade visual ──────────────────────────────────────────────────
 
-  Cenário: Identidade visual do style guide ENSO
-    Quando abro qualquer página da aplicação
-    Então os componentes seguem o style guide ENSO (botões, campos, alertas, badges, cartões, tabs e modais)
-    E as cores vêm do esquema de 4 cores definido no branding
+  Scenario: Identidade visual do style guide ENSO
+    When abro qualquer página da aplicação
+    Then os componentes seguem o style guide ENSO (botões, campos, alertas, badges, cartões, tabs e modais)
+    And as cores vêm do esquema de 4 cores definido no branding
     # O style guide é a referência visual comum a todos os projetos; cada projeto varia cores e logótipo
 
-  Cenário: Tipo de letra Inter
-    Quando abro qualquer página da aplicação
-    Então o texto é apresentado com o tipo de letra Inter
-    E o código e os valores técnicos usam uma fonte monoespaçada
+  Scenario: Tipo de letra Inter
+    When abro qualquer página da aplicação
+    Then o texto é apresentado com o tipo de letra Inter
+    And o código e os valores técnicos usam uma fonte monoespaçada
 
-  Cenário: Idioma e tratamento
-    Quando leio os textos da interface
-    Então estão em português de Portugal
-    E tratam o utilizador por "tu"
+  Scenario: Idioma e tratamento
+    When leio os textos da interface
+    Then estão em português de Portugal
+    And tratam o utilizador por "tu"
 
   # ── Modo claro e escuro ────────────────────────────────────────────────
 
-  Cenário: Alternar entre modo claro e escuro
-    Quando escolho o botão "Dark" ou "Light"
-    Então a interface muda para o modo escolhido
-    E o botão está disponível no front-end público, nas páginas de login e no back-office
+  Scenario: Alternar entre modo claro e escuro
+    When escolho o botão "Dark" ou "Light"
+    Then a interface muda para o modo escolhido
+    And o botão está disponível no front-end público, nas páginas de login e no back-office
 
-  Cenário: Preferência de modo guardada
-    Dado que escolhi o modo escuro
-    Quando volto a abrir a aplicação no mesmo browser
-    Então a interface abre em modo escuro
+  Scenario: Preferência de modo guardada
+    Given que escolhi o modo escuro
+    When volto a abrir a aplicação no mesmo browser
+    Then a interface abre em modo escuro
 
-  Cenário: Modo inicial segue o sistema
-    Dado que nunca escolhi um modo neste browser
-    Quando abro a aplicação
-    Então a interface segue a preferência de modo claro ou escuro do sistema operativo
+  Scenario: Modo inicial segue o sistema
+    Given que nunca escolhi um modo neste browser
+    When abro a aplicação
+    Then a interface segue a preferência de modo claro ou escuro do sistema operativo
 
-  Cenário: Logótipo legível em modo escuro
-    Dado que o logótipo do cliente foi desenhado para fundos claros
-    Quando abro o back-office em modo escuro
-    Então o logótipo aparece sobre um fundo claro
+  Scenario: Logótipo legível em modo escuro
+    Given que o logótipo do cliente foi desenhado para fundos claros
+    When abro o back-office em modo escuro
+    Then o logótipo aparece sobre um fundo claro
 
   # ── Back-office ────────────────────────────────────────────────────────
 
-  Cenário: Estrutura do back-office
-    Quando abro o back-office
-    Então vejo uma barra superior com o logótipo, o botão de modo e o menu do utilizador
-    E vejo uma barra lateral com ícones para as áreas do back-office
-    E o menu do utilizador dá acesso ao perfil e a "Terminar sessão"
+  Scenario: Estrutura do back-office
+    When abro o back-office
+    Then vejo uma barra superior com o logótipo, o botão de modo e o menu do utilizador
+    And vejo uma barra lateral com ícones para as áreas do back-office
+    And o menu do utilizador dá acesso ao perfil e a "Terminar sessão"
 
-  Cenário: Barra lateral colapsável
-    Dado um ecrã do tipo "desktop"
-    Quando colapso a barra lateral
-    Então ficam visíveis apenas os ícones
-    E a escolha é lembrada neste browser
+  Scenario: Barra lateral colapsável
+    Given um ecrã do tipo "desktop"
+    When colapso a barra lateral
+    Then ficam visíveis apenas os ícones
+    And a escolha é lembrada neste browser
 
-  Cenário: Barra lateral em ecrãs pequenos
-    Dado um ecrã do tipo "telemóvel"
-    Quando abro o menu
-    Então a barra lateral aparece por cima do conteúdo
-    E fecha ao escolher uma opção ou ao tocar fora dela
+  Scenario: Barra lateral em ecrãs pequenos
+    Given um ecrã do tipo "telemóvel"
+    When abro o menu
+    Then a barra lateral aparece por cima do conteúdo
+    And fecha ao escolher uma opção ou ao tocar fora dela
 
   # ── Responsividade ─────────────────────────────────────────────────────
 
-  Esquema do Cenário: Páginas responsivas
-    Dado um ecrã do tipo "<dispositivo>"
-    Quando abro a página "<pagina>"
-    Então o conteúdo adapta-se à largura do ecrã
-    E não existe scroll horizontal na página
-    E todos os controlos são utilizáveis
+  Scenario Outline: Páginas responsivas
+    Given um ecrã do tipo "<dispositivo>"
+    When abro a página "<pagina>"
+    Then o conteúdo adapta-se à largura do ecrã
+    And não existe scroll horizontal na página
+    And todos os controlos são utilizáveis
 
-    Exemplos:
+    Examples:
       | dispositivo | pagina                   |
       | desktop     | front-end público        |
       | tablet      | front-end público        |
@@ -89,24 +88,24 @@ Funcionalidade: Interface, tipografia e formatação
       | telemóvel   | gestão de utilizadores   |
       | telemóvel   | settings                 |
 
-  Cenário: Tabelas em ecrãs pequenos
-    Dado um ecrã do tipo "telemóvel"
-    Quando abro uma lista apresentada em tabela no desktop
-    Então cada linha é apresentada como um cartão
+  Scenario: Tabelas em ecrãs pequenos
+    Given um ecrã do tipo "telemóvel"
+    When abro uma lista apresentada em tabela no desktop
+    Then cada linha é apresentada como um cartão
 
   # ── Datas ──────────────────────────────────────────────────────────────
 
-  Esquema do Cenário: Formatação de datas
-    Dado um registo com a data e hora "2026-10-05T14:30:15"
-    Quando a data é apresentada num contexto que exige "<precisao>"
-    Então é apresentada como "<resultado>"
+  Scenario Outline: Formatação de datas
+    Given um registo com a data e hora "2026-10-05T14:30:15"
+    When a data é apresentada num contexto que exige "<precisao>"
+    Then é apresentada como "<resultado>"
 
-    Exemplos:
+    Examples:
       | precisao              | resultado           |
       | só data               | 2026/10/05          |
       | data e hora           | 2026/10/05 14:30    |
       | data, hora e segundos | 2026/10/05 14:30:15 |
 
-  Cenário: Nenhum outro formato de data é utilizado
-    Quando percorro as páginas da aplicação e os e-mails enviados
-    Então nenhuma data aparece em formatos como "05/10/2026" ou "5 out 2026"
+  Scenario: Nenhum outro formato de data é utilizado
+    When percorro as páginas da aplicação e os e-mails enviados
+    Then nenhuma data aparece em formatos como "05/10/2026" ou "5 out 2026"

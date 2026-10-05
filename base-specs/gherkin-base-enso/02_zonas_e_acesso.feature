@@ -1,39 +1,38 @@
-# language: pt
 @base @acesso
-Funcionalidade: Zonas da aplicação e controlo de acesso
+Feature: Zonas da aplicação e controlo de acesso
   Como responsável pelo produto
   Quero separar a zona pública do back-office
   Para que só utilizadores autenticados acedam à gestão da plataforma
 
-  Cenário: Visitante acede ao front-end público
-    Dado que não estou autenticado
-    Quando acedo à página inicial
-    Então vejo o front-end público
-    E não me é pedida autenticação
-    E tenho um link para entrar no back-office
+  Scenario: Visitante acede ao front-end público
+    Given que não estou autenticado
+    When acedo à página inicial
+    Then vejo o front-end público
+    And não me é pedida autenticação
+    And tenho um link para entrar no back-office
 
-  Cenário: Visitante tenta aceder ao back-office
-    Dado que não estou autenticado
-    Quando acedo a "/admin"
-    Então sou redirecionado para a página de login
+  Scenario: Visitante tenta aceder ao back-office
+    Given que não estou autenticado
+    When acedo a "/admin"
+    Then sou redirecionado para a página de login
 
-  Cenário: Regresso à página pedida depois do login
-    Dado que não estou autenticado
-    E que tentei abrir "/admin/users"
-    Quando faço login com sucesso
-    Então sou encaminhado para "/admin/users"
+  Scenario: Regresso à página pedida depois do login
+    Given que não estou autenticado
+    And que tentei abrir "/admin/users"
+    When faço login com sucesso
+    Then sou encaminhado para "/admin/users"
 
-  Cenário: Utilizador autenticado acede ao back-office
-    Dado que estou autenticado
-    Quando acedo a "/admin"
-    Então vejo o back-office
+  Scenario: Utilizador autenticado acede ao back-office
+    Given que estou autenticado
+    When acedo a "/admin"
+    Then vejo o back-office
 
-  Esquema do Cenário: Acesso às áreas de administração por perfil
-    Dado que estou autenticado com o perfil "<perfil>"
-    Quando acedo à zona de "<zona>"
-    Então o acesso é "<resultado>"
+  Scenario Outline: Acesso às áreas de administração por perfil
+    Given que estou autenticado com o perfil "<perfil>"
+    When acedo à zona de "<zona>"
+    Then o acesso é "<resultado>"
 
-    Exemplos:
+    Examples:
       | perfil              | zona         | resultado |
       | super administrador | settings     | permitido |
       | administrador       | settings     | permitido |
@@ -42,19 +41,19 @@ Funcionalidade: Zonas da aplicação e controlo de acesso
       | administrador       | utilizadores | permitido |
       | normal              | utilizadores | negado    |
 
-  Cenário: Acesso negado a um perfil normal
-    Dado que estou autenticado com o perfil "normal"
-    Quando abro diretamente o endereço das settings
-    Então vejo uma mensagem de acesso negado
-    E o back-end também recusa os pedidos dessa área
+  Scenario: Acesso negado a um perfil normal
+    Given que estou autenticado com o perfil "normal"
+    When abro diretamente o endereço das settings
+    Then vejo uma mensagem de acesso negado
+    And o back-end também recusa os pedidos dessa área
 
-  Cenário: Menu do back-office adaptado ao perfil
-    Dado que estou autenticado com o perfil "normal"
-    Quando abro o back-office
-    Então o menu mostra "Painel" e "O meu perfil"
-    E o menu não mostra "Utilizadores" nem "Settings"
+  Scenario: Menu do back-office adaptado ao perfil
+    Given que estou autenticado com o perfil "normal"
+    When abro o back-office
+    Then o menu mostra "Painel" e "O meu perfil"
+    And o menu não mostra "Utilizadores" nem "Settings"
 
-  Cenário: Página inexistente
-    Quando acedo a um endereço que não existe
-    Então vejo uma página a indicar que a página não foi encontrada
-    E tenho um link para voltar ao início
+  Scenario: Página inexistente
+    When acedo a um endereço que não existe
+    Then vejo uma página a indicar que a página não foi encontrada
+    And tenho um link para voltar ao início
