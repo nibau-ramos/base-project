@@ -1,0 +1,57 @@
+# ENSO base rules: one service per component, persistent data in ./data/<service>, no named volumes.
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-base}
+      POSTGRES_USER: ${POSTGRES_USER:-base}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-base}
+    volumes:
+      - ./data/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # Development mail catcher: every e-mail the app sends shows up at http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "${MAILPIT_PORT:-8025}:8025"
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      TZ: ${TZ:-Europe/Lisbon}
+      DATABASE_URL: postgres://${POSTGRES_USER:-base}:${POSTGRES_PASSWORD:-base}@db:5432/${POSTGRES_DB:-base}
+      APP_SECRET: ${APP_SECRET:-dev-only-secret-change-me}
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@exemplo.pt}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin12345}
+      ADMIN_NAME: ${ADMIN_NAME:-Administrador}
+      PROJECT_TITLE: ${PROJECT_TITLE:-Projeto Base}
+      CLIENT_NAME: ${CLIENT_NAME:-ENSO}
+      # First-run e-mail settings (afterwards edited in /admin/settings/email). Defaults point at Mailpit.
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_SSL: ${SMTP_SSL:-false}
+      SMTP_IGNORE_CERTIFICATES: ${SMTP_IGNORE_CERTIFICATES:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-no-reply@base-project.local}
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${APP_PORT:-8080}:80"

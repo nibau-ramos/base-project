@@ -2,14 +2,33 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Repository state
+## Repository layout
 
-There is no application code yet. The repository holds only the ENSO base specification that every ENSO project must satisfy:
+- `base-specs/`: the ENSO base specification that every ENSO project must satisfy.
+  - `Especificacao_Base_ENSO.pdf` / `.docx`: the specification in Portuguese. Both files have the same content.
+  - `gherkin-base-enso/*.feature`: Gherkin acceptance criteria (`# language: pt`, so keywords are `Funcionalidade`, `Cenário`, `Dado`, `Quando`, `Então` and so on), numbered by area (01 infrastructure through 10 e-mails). Scenarios tagged `@opcional` (fingerprint login, super administrator) are nice-to-haves. These files are the source of truth for the base requirements.
+- `sample-project/`: a reference implementation of the base spec, showing what a new project starts with. All sample code stays inside this folder.
 
-- `base-specs/Especificacao_Base_ENSO.pdf` / `.docx`: the base specification (Portuguese). The PDF and DOCX have the same content.
-- `base-specs/gherkin-base-enso/*.feature`: Gherkin acceptance criteria (`# language: pt`, so keywords are `Funcionalidade`, `Cenário`, `Dado`, `Quando`, `Então` and so on). They are numbered by area (01 infrastructure through 10 e-mails). Scenarios tagged `@opcional` (fingerprint login, super administrator profile) are nice-to-haves, not hard requirements.
+## sample-project commands
 
-Treat the `.feature` files as the source of truth for the base requirements. Project-specific requirements will be added on top of them. When the code is scaffolded, add build, run and test commands to this file, including how to run a single test or feature.
+Run these from `sample-project/`:
+
+- `docker compose up --build`: full stack. App on http://localhost:8080 (`/admin` is the back-office) and Mailpit on http://localhost:8025. The first login is `admin@exemplo.pt` / `admin12345`. Use `APP_PORT`, `MAILPIT_PORT` and `APP_URL` to change the ports if they are taken.
+- `rm -rf data`: reset the database. Stop the stack first, and recreate `data/db` before the next `up`, or Docker Desktop's bind mount can make Postgres initdb fail.
+- `cd backend && npm test`: tests use `node:test`. Run a single file with `node --test test/dates.test.js`, or a single test with `node --test --test-name-pattern="reset link"`. Don't pass a directory: Node treats it as a file.
+- `cd frontend && npm test && npm run build`: there is no linter configured.
+
+## sample-project architecture
+
+- **Backend** (`backend/src`): Express 5 with ESM, so async route errors reach the error handler in `app.js` without wrappers. There is no migration tool. `schema.sql` is idempotent and applied on every start, and `index.js` seeds the first super admin, e-mail settings and branding from environment variables only when they are missing. After that, the back-office owns those values.
+- **Sessions:** a JWT in an httpOnly `session` cookie. `requireAuth` reloads the user on every request and compares `token_version`, so bumping it (on password change or reset) logs out other sessions. Login with OTP goes through a 5-minute `otp_pending` cookie before `/api/auth/otp` issues the real session.
+- **Roles:** `canManageRole` in `lib/auth.js` is the single rule: admins manage admins and normal users, and only super admins manage super admins. The front-end copies it in `pages/admin/Users.jsx`.
+- **Secrets:** the SMTP password and OTP secrets are AES-GCM encrypted with `APP_SECRET` (`lib/crypto.js`). The SMTP password is never returned by the API, only `hasPassword`. Reset tokens are stored as SHA-256 hashes.
+- **Settings:** stored as JSON rows in the `settings` table (keys `email` and `branding`). The logo is stored as a blob in `branding_logo` and served publicly at `/api/branding/logo?v=<timestamp>`, which the front-end also uses as the favicon.
+- **E-mails:** every e-mail goes through `sendSystemEmail` in `lib/mailer.js`. It wraps content from a builder in `emails/templates.js` in the branded HTML layout and attaches the logo inline (`cid:brand-logo`). New e-mail types should be new builders there.
+- **Dates:** `formatDate(value, 'date' | 'datetime' | 'datetime-seconds')` exists in both `backend/src/lib/dates.js` and `frontend/src/lib/dates.js`. Never use `toLocaleString` or other formatters.
+- **Frontend** (`frontend/src`): React 19, React Router 7 and plain CSS in `styles.css`, which defines CSS variables and BEM-ish classes. Global state is only `AuthProvider` (`user` is `undefined` while loading and `null` when signed out) and `BrandingProvider` (which also sets the favicon and document title). `lib/api.js` wraps fetch, and pages show the backend's Portuguese error messages directly. In Docker, nginx serves the build and proxies `/api` to the backend. `npm run dev` uses the Vite proxy to `localhost:4000` instead.
+- **UI language:** user-facing text is Portuguese (pt-PT), and the backend error messages are also Portuguese.
 
 ## Mandated stack and infrastructure
 

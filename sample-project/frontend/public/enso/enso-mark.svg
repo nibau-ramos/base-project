@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <clipPath id="clip-enso">
+      <rect width="1024" height="1024"/>
+    </clipPath>
+  </defs>
+  <g id="enso" clip-path="url(#clip-enso)">
+    <rect width="1024" height="1024" fill="rgba(255,255,255,0)"/>
+    <path id="Path_103" data-name="Path 103" d="M5383.05,82.185a511.376,511.376,0,0,0-371.26,858.872L5168.857,784c-101.142-116.232-93.638-291.282,17.074-398.434s285.912-108.935,398.776-4.059,123.93,279.737,25.184,398-272.775,138.581-396.112,46.238L5056.2,983.585a511.5,511.5,0,1,0,326.846-901.4Z" transform="translate(-4875.561 -82.057)" fill="#0086ac"/>
+  </g>
+</svg>
