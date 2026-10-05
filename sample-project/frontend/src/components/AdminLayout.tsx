@@ -2,6 +2,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ExternalLink,
+  Inbox,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -14,6 +15,7 @@ import {
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { isAdmin, ROLE_LABELS, useCurrentUser, useAuth } from '../lib/auth'
+import { useAppConfig } from '../lib/config'
 import ThemeToggle from '../styleguide/features/theme/ThemeToggle'
 import { Avatar } from '../ui/layout'
 import PoweredBy from '../ui/PoweredBy'
@@ -130,6 +132,7 @@ function UserMenu() {
 
 export default function AdminLayout() {
   const user = useCurrentUser()
+  const { mailpitUrl } = useAppConfig()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(readCollapsed)
@@ -191,6 +194,19 @@ export default function AdminLayout() {
             {EXTERNAL_ITEMS.map((item) => (
               <SidebarLink key={item.to} item={item} collapsed={collapsed} onNavigate={() => setSidebarOpen(false)} />
             ))}
+            {mailpitUrl && (
+              <a
+                href={mailpitUrl}
+                target="_blank"
+                rel="noreferrer"
+                title={collapsed ? 'Mailpit (e-mails de teste)' : undefined}
+                className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-theme
+                  text-text-muted hover:bg-surface-hover hover:text-text-base ${collapsed ? 'lg:justify-center lg:px-2' : ''}`}
+              >
+                <Inbox size={16} className="flex-shrink-0" />
+                <span className={`truncate ${collapsed ? 'lg:hidden' : ''}`}>Mailpit</span>
+              </a>
+            )}
           </nav>
 
           <div className="hidden lg:flex border-t border-border p-2">

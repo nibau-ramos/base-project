@@ -1,9 +1,10 @@
-import { Check, Mail, Palette, RefreshCw, RotateCcw, Send, Upload, X } from 'lucide-react'
+import { Check, Inbox, Mail, Palette, RefreshCw, RotateCcw, Send, Upload, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
 import { api, errorMessage } from '../../lib/api'
 import { useCurrentUser } from '../../lib/auth'
 import { useBranding } from '../../lib/branding'
+import { useAppConfig } from '../../lib/config'
 import { extractColorsFromImage, suggestThemeColors } from '../../lib/colorExtraction'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { resetColors, setColor, setColors, type ColorKey, type ThemeColors } from '../../store/themeSlice'
@@ -40,6 +41,7 @@ function useStatus() {
 
 function EmailSettings() {
   const me = useCurrentUser()
+  const { mailpitUrl } = useAppConfig()
   const [form, setForm] = useState<EmailSettingsData | null>(null)
   const [password, setPassword] = useState('')
   const [clearPassword, setClearPassword] = useState(false)
@@ -125,6 +127,16 @@ function EmailSettings() {
           <Button type="submit" variant="outline" block loading={testStatus.busy} icon={<Send size={15} />}>
             {testStatus.busy ? 'A enviar...' : 'Enviar teste'}
           </Button>
+          {mailpitUrl && (
+            <a
+              href={mailpitUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center justify-center gap-1.5 text-sm font-medium text-primary hover:underline"
+            >
+              <Inbox size={14} /> Abrir Mailpit (e-mails de teste)
+            </a>
+          )}
         </form>
       </Card>
     </div>

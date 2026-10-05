@@ -1,8 +1,19 @@
-import { ArrowRight, CalendarClock, LayoutGrid, LockKeyhole, Palette, ShieldCheck, Smartphone } from 'lucide-react'
+import {
+  ArrowRight,
+  CalendarClock,
+  Inbox,
+  LayoutGrid,
+  LockKeyhole,
+  Palette,
+  ShieldCheck,
+  Smartphone,
+  type LucideIcon,
+} from 'lucide-react'
 import { Link } from 'react-router-dom'
 import BrandLogo from '../components/BrandLogo'
 import { useAuth } from '../lib/auth'
 import { useBranding } from '../lib/branding'
+import { useAppConfig } from '../lib/config'
 import { formatDate } from '../lib/dates'
 import ThemeToggle from '../styleguide/features/theme/ThemeToggle'
 import { ButtonLink } from '../ui/Button'
@@ -30,9 +41,28 @@ const FEATURES = [
   },
 ]
 
+const CARD_CLASSES =
+  'group rounded-xl border border-border bg-surface p-5 hover:border-primary/40 hover:shadow-md transition-all duration-200'
+
+function FeatureCardBody({ icon: Icon, title, text }: { icon: LucideIcon; title: string; text: string }) {
+  return (
+    <>
+      <div className="p-2 rounded-lg bg-primary/10 w-fit mb-3">
+        <Icon size={18} className="text-primary" />
+      </div>
+      <h2 className="text-sm font-semibold text-text-base group-hover:text-primary transition-theme">{title}</h2>
+      <p className="text-xs text-text-muted mt-1 leading-relaxed">{text}</p>
+      <span className="flex items-center gap-1 mt-4 text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+        Abrir <ArrowRight size={12} />
+      </span>
+    </>
+  )
+}
+
 export default function Home() {
   const { branding } = useBranding()
   const { user } = useAuth()
+  const { mailpitUrl } = useAppConfig()
   const now = new Date()
 
   return (
@@ -49,6 +79,16 @@ export default function Home() {
             >
               Style guide
             </Link>
+            {mailpitUrl && (
+              <a
+                href={mailpitUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="hidden sm:inline-flex px-3 py-2 rounded-lg text-sm font-medium text-text-muted hover:text-text-base hover:bg-surface-hover transition-theme"
+              >
+                Mailpit
+              </a>
+            )}
             <ThemeToggle />
             <ButtonLink to={user ? '/admin' : '/login'} size="sm">
               {user ? 'Back-office' : 'Entrar'}
@@ -78,23 +118,21 @@ export default function Home() {
         </section>
 
         <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-16">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {FEATURES.map(({ icon: Icon, title, text, to }) => (
-              <Link
-                key={to}
-                to={to}
-                className="group rounded-xl border border-border bg-surface p-5 hover:border-primary/40 hover:shadow-md transition-all duration-200"
-              >
-                <div className="p-2 rounded-lg bg-primary/10 w-fit mb-3">
-                  <Icon size={18} className="text-primary" />
-                </div>
-                <h2 className="text-sm font-semibold text-text-base group-hover:text-primary transition-theme">{title}</h2>
-                <p className="text-xs text-text-muted mt-1 leading-relaxed">{text}</p>
-                <span className="flex items-center gap-1 mt-4 text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                  Abrir <ArrowRight size={12} />
-                </span>
+          <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${mailpitUrl ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}>
+            {FEATURES.map(({ icon, title, text, to }) => (
+              <Link key={to} to={to} className={CARD_CLASSES}>
+                <FeatureCardBody icon={icon} title={title} text={text} />
               </Link>
             ))}
+            {mailpitUrl && (
+              <a href={mailpitUrl} target="_blank" rel="noreferrer" className={CARD_CLASSES}>
+                <FeatureCardBody
+                  icon={Inbox}
+                  title="Mailpit"
+                  text="Caixa de correio de desenvolvimento: todos os e-mails enviados pela plataforma aparecem aqui."
+                />
+              </a>
+            )}
           </div>
 
           <div className="mt-10 pt-8 border-t border-border grid grid-cols-1 sm:grid-cols-3 gap-6">

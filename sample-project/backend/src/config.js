@@ -11,6 +11,8 @@ export const config = {
   appSecret: env.APP_SECRET || 'dev-only-secret-change-me',
   // Public URL of the front-end, used to build links in e-mails.
   appUrl: (env.APP_URL || 'http://localhost:8080').replace(/\/$/, ''),
+  // Development only: browser URL of the Mailpit inbox. When set, the front-end shows links to it.
+  mailpitUrl: env.MAILPIT_URL || null,
   cookieSecure: env.COOKIE_SECURE === 'true',
   sessionHours: Number(env.SESSION_HOURS || 12),
 

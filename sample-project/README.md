@@ -13,7 +13,7 @@ docker compose up --build
 | http://localhost:8080 | Public front-end |
 | http://localhost:8080/styleguide | ENSO style guide (public, for reference) |
 | http://localhost:8080/admin | Back-office (redirects to login) |
-| http://localhost:8025 | Mailpit, catches every e-mail the app sends |
+| http://localhost:8025 | Mailpit, catches every e-mail the app sends (linked from the landing, the back-office sidebar and the e-mail settings while `MAILPIT_URL` is set; set `MAILPIT_URL=` empty in production to hide the links) |
 
 First login: `admin@exemplo.pt` / `admin12345` (super administrator). Change it with `ADMIN_EMAIL` / `ADMIN_PASSWORD` before the first start, see `.env.example`.
 

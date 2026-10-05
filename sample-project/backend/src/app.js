@@ -1,5 +1,6 @@
 import cookieParser from 'cookie-parser';
 import express from 'express';
+import { config } from './config.js';
 import authRoutes from './routes/auth.js';
 import brandingRoutes from './routes/branding.js';
 import profileRoutes from './routes/profile.js';
@@ -14,6 +15,8 @@ export function createApp() {
   app.use(cookieParser());
 
   app.get('/api/health', (req, res) => res.json({ ok: true }));
+  // Public runtime config for the front-end (dev tools links).
+  app.get('/api/config', (req, res) => res.json({ mailpitUrl: config.mailpitUrl }));
   app.use('/api/auth', authRoutes);
   app.use('/api/branding', brandingRoutes);
   app.use('/api/profile', profileRoutes);
