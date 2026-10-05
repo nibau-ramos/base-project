@@ -11,6 +11,7 @@ docker compose up --build
 | URL | What |
 | --- | --- |
 | http://localhost:8080 | Public front-end |
+| http://localhost:8080/styleguide | ENSO style guide (public, for reference) |
 | http://localhost:8080/admin | Back-office (redirects to login) |
 | http://localhost:8025 | Mailpit, catches every e-mail the app sends |
 
@@ -34,13 +35,16 @@ cd frontend && npm install && npm run dev   # http://localhost:5173, proxies /ap
 ```bash
 cd backend && npm test     # dates, encryption, e-mail templates
 cd frontend && npm test    # date formatting
-cd frontend && npm run build
+cd frontend && npm run build   # typecheck (tsc) + Vite build
 ```
 
 ## What's where
 
 - `backend/`: Node 22 + Express 5 + Postgres (`pg`). Schema in `src/schema.sql` (applied on start), first-run seed in `src/index.js`.
-- `frontend/`: React 19 + Vite + React Router, plain CSS (`src/styles.css`), Inter via `@fontsource-variable/inter`. Served by nginx in Docker, which also proxies `/api` to the backend.
-- `frontend/public/enso/`: ENSO logos taken from enso-origins.com, used for "Powered by ENSO".
+- `frontend/`: React 19 + TypeScript + Vite + React Router + Tailwind, with the look of the ENSO style guide. Inter and JetBrains Mono are self-hosted via Fontsource. Served by nginx in Docker, which also proxies `/api` to the backend.
+  - `src/styleguide/`: copy of the ENSO style guide (`base-style-guide`), served at `/styleguide`.
+  - `src/ui/`: the components the back-office is built from, taken from the style guide.
+  - Light/dark mode toggle everywhere; the four theme colors come from Settings → Branding.
+- `frontend/public/enso/`: official ENSO ORIGINS logos (from the style guide), used for "Powered by ENSO".
 
 Fingerprint (WebAuthn) login is marked optional in the spec and is not implemented.

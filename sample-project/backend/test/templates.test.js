@@ -13,6 +13,12 @@ test('layout shows branding, escapes values and uses the ENSO date format', () =
   assert.match(html, /2026\/10\/05 14:30/);
 });
 
+test('action button uses the branding primary color, falling back to ENSO blue', () => {
+  const action = { label: 'Entrar', url: 'http://app/login' };
+  assert.match(layout({ branding: { ...branding, colors: { primary: '#e4572e' } }, heading: 'x', action }), /background:#e4572e/);
+  assert.match(layout({ branding: { ...branding, colors: { primary: 'red;x' } }, heading: 'x', action }), /background:#0086ac/);
+});
+
 test('welcome e-mail only carries a reset link when asked to', () => {
   const reset = { url: 'http://app/reset-password?token=t', expiresAt: new Date('2026-10-08T14:30:00') };
   const withReset = welcomeEmail({ branding, user, reset, loginUrl: 'http://app/login' });

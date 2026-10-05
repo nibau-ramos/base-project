@@ -38,6 +38,11 @@ router.get('/', async (req, res) => {
   res.json({ users: rows.map(publicUser) });
 });
 
+router.get('/:id', async (req, res) => {
+  const target = await loadTarget(req, res);
+  if (target) res.json({ user: publicUser(target) });
+});
+
 router.post('/', async (req, res) => {
   const email = normalizeEmail(req.body?.email);
   const name = String(req.body?.name || '').trim();

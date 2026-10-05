@@ -3,7 +3,7 @@ import multer from 'multer';
 import { getSetting, query, setSetting } from '../db.js';
 import { testEmail } from '../emails/templates.js';
 import { isValidEmail, requireAdmin } from '../lib/auth.js';
-import { getBranding } from '../lib/branding.js';
+import { COLOR_KEYS, getBranding, isHexColor, normalizeColors } from '../lib/branding.js';
 import { getEmailSettingsForApi, saveEmailSettings, sendSystemEmail } from '../lib/mailer.js';
 
 const router = Router();
@@ -60,7 +60,13 @@ router.put('/branding', async (req, res) => {
   const projectTitle = String(req.body?.projectTitle || '').trim();
   const clientName = String(req.body?.clientName || '').trim();
   if (!projectTitle) return res.status(400).json({ error: 'Indique o título do projeto.' });
-  await setSetting('branding', { ...((await getSetting('branding')) || {}), projectTitle, clientName });
+
+  const current = (await getSetting('branding')) || {};
+  const colors = req.body?.colors ?? current.colors ?? {};
+  if (typeof colors !== 'object' || COLOR_KEYS.some((key) => colors[key] !== undefined && !isHexColor(colors[key]))) {
+    return res.status(400).json({ error: 'As cores devem estar no formato #RRGGBB.' });
+  }
+  await setSetting('branding', { ...current, projectTitle, clientName, colors: normalizeColors(colors) });
   res.json(await getBranding());
 });
 

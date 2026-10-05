@@ -9,8 +9,9 @@ export function layout({ branding, hasLogo, heading, paragraphs = [], action, fo
   const title = escapeHtml(branding.projectTitle);
   const client = escapeHtml(branding.clientName);
   const body = paragraphs.map((p) => `<p style="margin:0 0 16px;line-height:1.5">${escapeHtml(p)}</p>`).join('');
+  const primary = /^#[0-9a-f]{6}$/i.test(branding.colors?.primary ?? '') ? branding.colors.primary : '#0086ac';
   const button = action
-    ? `<p style="margin:24px 0"><a href="${escapeHtml(action.url)}" style="display:inline-block;background:#0086ac;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">${escapeHtml(action.label)}</a></p>
+    ? `<p style="margin:24px 0"><a href="${escapeHtml(action.url)}" style="display:inline-block;background:${primary};color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">${escapeHtml(action.label)}</a></p>
        <p style="margin:0 0 16px;font-size:13px;color:#555;word-break:break-all">${escapeHtml(action.url)}</p>`
     : '';
   const logo = hasLogo
