@@ -10,6 +10,8 @@ export interface User {
   role: Role
   active: boolean
   otpEnabled: boolean
+  /** Set by an admin: the user can't disable OTP and must set it up at login. */
+  otpRequired: boolean
   createdAt: string
   lastLoginAt: string | null
 }

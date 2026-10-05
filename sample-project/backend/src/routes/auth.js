@@ -1,7 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { authenticator } from 'otplib';
 import { query } from '../db.js';
 import { passwordResetEmail } from '../emails/templates.js';
 import {
@@ -15,8 +14,8 @@ import {
   startSession,
 } from '../lib/auth.js';
 import { getBranding } from '../lib/branding.js';
-import { decrypt } from '../lib/crypto.js';
 import { sendSystemEmail } from '../lib/mailer.js';
+import { confirmEnrollment, startEnrollment, verifyOtp } from '../lib/otp.js';
 import { createResetLink, findValidResetToken } from '../lib/resetTokens.js';
 
 const router = Router();
@@ -43,22 +42,51 @@ router.post('/login', limiter, async (req, res) => {
     startOtpChallenge(res, user);
     return res.json({ otpRequired: true });
   }
+  if (user.otp_required) {
+    // An admin made OTP mandatory and it isn't set up yet: no session until it is (see /otp/setup below).
+    startOtpChallenge(res, user, 15);
+    return res.json({ otpSetupRequired: true });
+  }
   await startSession(res, user);
   res.json({ user: publicUser(user) });
 });
 
-router.post('/otp', limiter, async (req, res) => {
-  const userId = readOtpChallenge(req);
-  if (!userId) return res.status(401).json({ error: 'O pedido expirou. Volte a introduzir o e-mail e a password.' });
+const CHALLENGE_EXPIRED = 'O pedido expirou. Volte a introduzir o e-mail e a password.';
 
-  const { rows } = await query('SELECT * FROM users WHERE id = $1', [userId]);
-  const user = rows[0];
-  const code = String(req.body?.code || '').replace(/\s/g, '');
-  if (!user?.active || !user.otp_enabled || !authenticator.verify({ token: code, secret: decrypt(user.otp_secret) })) {
+async function challengedUser(req) {
+  const userId = readOtpChallenge(req);
+  if (!userId) return null;
+  const { rows } = await query('SELECT * FROM users WHERE id = $1 AND active', [userId]);
+  return rows[0] || null;
+}
+
+router.post('/otp', limiter, async (req, res) => {
+  const user = await challengedUser(req);
+  if (!user) return res.status(401).json({ error: CHALLENGE_EXPIRED });
+  if (!user.otp_enabled || !verifyOtp(user.otp_secret, req.body?.code)) {
     return res.status(401).json({ error: 'Código inválido.' });
   }
   await startSession(res, user);
   res.json({ user: publicUser(user) });
+});
+
+// Forced setup during login. Only reachable with a password-verified challenge, and only for accounts
+// that must have OTP but don't yet, so it can't be used to replace an existing OTP.
+router.post('/otp/setup', limiter, async (req, res) => {
+  const user = await challengedUser(req);
+  if (!user) return res.status(401).json({ error: CHALLENGE_EXPIRED });
+  if (!user.otp_required || user.otp_enabled) return res.status(400).json({ error: 'Pedido inválido.' });
+  res.json(await startEnrollment(user));
+});
+
+router.post('/otp/setup/confirm', limiter, async (req, res) => {
+  const user = await challengedUser(req);
+  if (!user) return res.status(401).json({ error: CHALLENGE_EXPIRED });
+  if (!user.otp_required || user.otp_enabled) return res.status(400).json({ error: 'Pedido inválido.' });
+  const updated = await confirmEnrollment(user, req.body?.code);
+  if (!updated) return res.status(400).json({ error: 'Código inválido.' });
+  await startSession(res, updated);
+  res.json({ user: publicUser(updated) });
 });
 
 router.post('/logout', (req, res) => {

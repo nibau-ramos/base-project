@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, Mail, Pencil, Plus, Search, ShieldCheck, Trash2, XCircle } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, Lock, Mail, Pencil, Plus, Search, ShieldCheck, Trash2, XCircle } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, errorMessage } from '../../lib/api'
@@ -21,6 +21,17 @@ function StatusBadge({ user }: { user: User }) {
   ) : (
     <Badge variant="error" icon={<XCircle size={12} />}>Inativo</Badge>
   )
+}
+
+function OtpBadge({ user }: { user: User }) {
+  if (user.otpEnabled) {
+    return (
+      <Badge variant="primary" icon={user.otpRequired ? <Lock size={12} /> : <ShieldCheck size={12} />}>
+        {user.otpRequired ? 'OTP obrigatório' : 'OTP'}
+      </Badge>
+    )
+  }
+  return user.otpRequired ? <Badge variant="warning" icon={<Lock size={12} />}>OTP por configurar</Badge> : null
 }
 
 export default function Users() {
@@ -220,7 +231,7 @@ export default function Users() {
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <StatusBadge user={u} />
-                      {u.otpEnabled && <Badge variant="primary" icon={<ShieldCheck size={12} />}>OTP</Badge>}
+                      <OtpBadge user={u} />
                     </div>
                   </td>
                   <td className="py-3 px-4 text-text-muted whitespace-nowrap">{formatDate(u.lastLoginAt, 'datetime') || '—'}</td>
@@ -247,7 +258,7 @@ export default function Users() {
             <div className="flex items-center gap-1.5 flex-wrap mt-3">
               <Badge variant="neutral">{ROLE_LABELS[u.role]}</Badge>
               <StatusBadge user={u} />
-              {u.otpEnabled && <Badge variant="primary" icon={<ShieldCheck size={12} />}>OTP</Badge>}
+              <OtpBadge user={u} />
             </div>
             <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-border">
               <span className="text-xs text-text-muted">Último acesso: {formatDate(u.lastLoginAt, 'datetime') || '—'}</span>

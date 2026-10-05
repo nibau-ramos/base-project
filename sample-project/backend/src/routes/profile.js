@@ -1,13 +1,10 @@
 import bcrypt from 'bcryptjs';
 import { Router } from 'express';
-import { authenticator } from 'otplib';
-import QRCode from 'qrcode';
 import { query } from '../db.js';
 import { noticeEmail } from '../emails/templates.js';
-import { getBranding } from '../lib/branding.js';
 import { passwordProblem, publicUser, requireAuth, startSession } from '../lib/auth.js';
-import { decrypt, encrypt } from '../lib/crypto.js';
 import { sendSystemEmail } from '../lib/mailer.js';
+import { clearOtp, confirmEnrollment, startEnrollment } from '../lib/otp.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -43,39 +40,27 @@ router.put('/password', async (req, res) => {
   res.json({ message: 'Password alterada com sucesso.' });
 });
 
-// OTP setup is two-step: a pending secret is generated here and only becomes active after /otp/confirm.
+// OTP setup is two-step (see lib/otp.js): /otp/setup creates a pending secret, /otp/confirm activates it.
 router.post('/otp/setup', async (req, res) => {
   if (req.user.otp_enabled) return res.status(400).json({ error: 'O OTP já está ativo.' });
-  const secret = authenticator.generateSecret();
-  await query('UPDATE users SET otp_pending_secret = $1 WHERE id = $2', [encrypt(secret), req.user.id]);
-
-  const { projectTitle } = await getBranding();
-  const uri = authenticator.keyuri(req.user.email, projectTitle || 'Projeto Base', secret);
-  res.json({ qr: await QRCode.toDataURL(uri, { margin: 1, width: 240 }), secret });
+  res.json(await startEnrollment(req.user));
 });
 
 router.post('/otp/confirm', async (req, res) => {
-  const pending = req.user.otp_pending_secret ? decrypt(req.user.otp_pending_secret) : null;
-  const code = String(req.body?.code || '').replace(/\s/g, '');
-  if (!pending) return res.status(400).json({ error: 'Comece por gerar um novo código QR.' });
-  if (!authenticator.verify({ token: code, secret: pending })) return res.status(400).json({ error: 'Código inválido.' });
-
-  const { rows } = await query(
-    'UPDATE users SET otp_enabled = TRUE, otp_secret = otp_pending_secret, otp_pending_secret = NULL WHERE id = $1 RETURNING *',
-    [req.user.id],
-  );
-  res.json({ user: publicUser(rows[0]) });
+  if (!req.user.otp_pending_secret) return res.status(400).json({ error: 'Comece por gerar um novo código QR.' });
+  const updated = await confirmEnrollment(req.user, req.body?.code);
+  if (!updated) return res.status(400).json({ error: 'Código inválido.' });
+  res.json({ user: publicUser(updated) });
 });
 
 router.post('/otp/disable', async (req, res) => {
+  if (req.user.otp_required) {
+    return res.status(403).json({ error: 'O OTP é obrigatório para esta conta e não pode ser desativado.' });
+  }
   if (!(await bcrypt.compare(String(req.body?.password || ''), req.user.password_hash))) {
     return res.status(400).json({ error: 'A password está incorreta.' });
   }
-  const { rows } = await query(
-    'UPDATE users SET otp_enabled = FALSE, otp_secret = NULL, otp_pending_secret = NULL WHERE id = $1 RETURNING *',
-    [req.user.id],
-  );
-  res.json({ user: publicUser(rows[0]) });
+  res.json({ user: publicUser(await clearOtp(req.user.id)) });
 });
 
 export default router;

@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowLeft, Mail, ShieldCheck } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Lock, Mail, RotateCcw, ShieldCheck } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, errorMessage } from '../../lib/api'
@@ -9,7 +9,7 @@ import { Alert, Badge, Spinner } from '../../ui/feedback'
 import { ChoiceGroup, PasswordField, TextField, Toggle } from '../../ui/form'
 import { Card, PageHeader } from '../../ui/layout'
 import { assignableRoles } from './Users'
-import { DeleteUserModal, WelcomeModal } from './userModals'
+import { DeleteUserModal, ResetOtpModal, WelcomeModal } from './userModals'
 
 const ROLE_HINTS: Record<Role, string> = {
   super_admin: 'Acesso total, incluindo gerir outros super administradores.',
@@ -22,6 +22,7 @@ interface Fields {
   name: string
   role: Role
   active: boolean
+  otpRequired: boolean
   password: string
 }
 
@@ -33,19 +34,33 @@ export default function UserForm() {
   const roles = assignableRoles(me.role)
 
   const [user, setUser] = useState<User | null>(null)
-  const [fields, setFields] = useState<Fields>({ email: '', name: '', role: 'normal', active: true, password: '' })
+  const [fields, setFields] = useState<Fields>({
+    email: '',
+    name: '',
+    role: 'normal',
+    active: true,
+    otpRequired: false,
+    password: '',
+  })
   const [loadError, setLoadError] = useState('')
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
-  const [modal, setModal] = useState<'welcome' | 'delete' | null>(null)
+  const [modal, setModal] = useState<'welcome' | 'delete' | 'reset-otp' | null>(null)
 
   useEffect(() => {
     if (!isEdit) return
     api<{ user: User }>(`/users/${id}`)
       .then(({ user }) => {
         setUser(user)
-        setFields({ email: user.email, name: user.name, role: user.role, active: user.active, password: '' })
+        setFields({
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          active: user.active,
+          otpRequired: user.otpRequired,
+          password: '',
+        })
       })
       .catch((err) => setLoadError(errorMessage(err)))
   }, [id, isEdit])
@@ -61,14 +76,20 @@ export default function UserForm() {
       if (isEdit) {
         const { user: saved } = await api<{ user: User }>(`/users/${id}`, {
           method: 'PUT',
-          body: { name: fields.name, role: fields.role, active: fields.active },
+          body: { name: fields.name, role: fields.role, active: fields.active, otpRequired: fields.otpRequired },
         })
         setUser(saved)
         setMessage('Alterações guardadas.')
       } else {
         const { user: created } = await api<{ user: User }>('/users', {
           method: 'POST',
-          body: { email: fields.email, name: fields.name, role: fields.role, password: fields.password },
+          body: {
+            email: fields.email,
+            name: fields.name,
+            role: fields.role,
+            password: fields.password,
+            otpRequired: fields.otpRequired,
+          },
         })
         navigate(`/admin/users/${created.id}`, { replace: true })
       }
@@ -103,6 +124,17 @@ export default function UserForm() {
       )}
       {modal === 'delete' && user && (
         <DeleteUserModal user={user} onClose={() => setModal(null)} onDeleted={() => navigate('/admin/users', { replace: true })} />
+      )}
+      {modal === 'reset-otp' && user && (
+        <ResetOtpModal
+          user={user}
+          onClose={() => setModal(null)}
+          onReset={(updated, msg) => {
+            setModal(null)
+            setUser(updated)
+            setMessage(msg)
+          }}
+        />
       )}
 
       {back}
@@ -178,7 +210,7 @@ export default function UserForm() {
             )}
 
             {isEdit && user && (
-              <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-border text-sm">
+              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-border text-sm">
                 <div>
                   <dt className="text-xs text-text-muted">Criado em</dt>
                   <dd className="font-medium text-text-base mt-0.5">{formatDate(user.createdAt)}</dd>
@@ -187,13 +219,53 @@ export default function UserForm() {
                   <dt className="text-xs text-text-muted">Último acesso</dt>
                   <dd className="font-medium text-text-base mt-0.5">{formatDate(user.lastLoginAt, 'datetime') || '—'}</dd>
                 </div>
-                <div>
-                  <dt className="text-xs text-text-muted">OTP</dt>
-                  <dd className="mt-1">
-                    {user.otpEnabled ? <Badge variant="success" icon={<ShieldCheck size={12} />}>Ativo</Badge> : <Badge>Inativo</Badge>}
-                  </dd>
-                </div>
               </dl>
+            )}
+          </div>
+        </Card>
+
+        <Card
+          title="Verificação em dois passos (OTP)"
+          actions={
+            user && (
+              <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                {user.otpRequired && <Badge variant="primary" icon={<Lock size={12} />}>Obrigatório</Badge>}
+                {user.otpEnabled ? (
+                  <Badge variant="success" icon={<ShieldCheck size={12} />}>Ativo</Badge>
+                ) : (
+                  <Badge variant={user.otpRequired ? 'warning' : 'neutral'}>{user.otpRequired ? 'Por configurar' : 'Inativo'}</Badge>
+                )}
+              </div>
+            )
+          }
+        >
+          <div className="space-y-4">
+            {isSelf ? (
+              <p className="text-sm text-text-muted">
+                O teu OTP gere-se em <Link to="/admin/profile" className="text-primary font-medium hover:underline">O meu perfil</Link>.
+              </p>
+            ) : (
+              <Toggle
+                label="Exigir OTP nesta conta"
+                description={
+                  fields.otpRequired
+                    ? 'A pessoa não pode desativar o OTP. Se ainda não o tiver, é obrigada a configurá-lo no próximo login (as sessões abertas terminam).'
+                    : 'Quando ativo, a pessoa não pode desativar o OTP e tem de o configurar antes de entrar.'
+                }
+                checked={fields.otpRequired}
+                onChange={(v) => set('otpRequired', v)}
+              />
+            )}
+            {isEdit && user && !isSelf && user.otpEnabled && (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-border">
+                <p className="text-sm text-text-muted">
+                  Perdeu o telemóvel? Repor remove o OTP atual e termina as sessões abertas.
+                  {user.otpRequired && ' Como é obrigatório, volta a configurá-lo no próximo login.'}
+                </p>
+                <Button type="button" variant="destructive-outline" size="sm" icon={<RotateCcw size={13} />} onClick={() => setModal('reset-otp')}>
+                  Repor OTP
+                </Button>
+              </div>
             )}
           </div>
         </Card>

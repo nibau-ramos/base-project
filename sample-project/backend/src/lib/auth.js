@@ -24,6 +24,7 @@ export function publicUser(row) {
     role: row.role,
     active: row.active,
     otpEnabled: row.otp_enabled,
+    otpRequired: row.otp_required,
     createdAt: row.created_at,
     lastLoginAt: row.last_login_at,
   };
@@ -38,10 +39,10 @@ export async function startSession(res, user) {
   await query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [user.id]);
 }
 
-// Issued after a correct password when the user has OTP enabled; only good for the OTP step.
-export function startOtpChallenge(res, user) {
-  const token = jwt.sign({ sub: user.id, purpose: 'otp' }, config.appSecret, { expiresIn: '5m' });
-  res.cookie(OTP_PENDING_COOKIE, token, cookieOptions(5 * 60 * 1000));
+// Issued after a correct password when the user has OTP enabled (or must set it up); only good for the OTP step.
+export function startOtpChallenge(res, user, minutes = 5) {
+  const token = jwt.sign({ sub: user.id, purpose: 'otp' }, config.appSecret, { expiresIn: `${minutes}m` });
+  res.cookie(OTP_PENDING_COOKIE, token, cookieOptions(minutes * 60 * 1000));
 }
 
 export function readOtpChallenge(req) {

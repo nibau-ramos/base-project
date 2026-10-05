@@ -12,10 +12,12 @@ export default function Login() {
   const { user, setUser } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const [step, setStep] = useState<'credentials' | 'otp'>('credentials')
+  // 'otp-setup' = an admin made OTP mandatory and this account hasn't set it up yet
+  const [step, setStep] = useState<'credentials' | 'otp' | 'otp-setup'>('credentials')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
+  const [setup, setSetup] = useState<{ qr: string; secret: string } | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -27,9 +29,14 @@ export default function Login() {
     setError('')
     setBusy(true)
     try {
-      const data = await api<{ otpRequired?: boolean; user?: User }>(path, { method: 'POST', body })
+      const data = await api<{ otpRequired?: boolean; otpSetupRequired?: boolean; user?: User }>(path, { method: 'POST', body })
       if (data.otpRequired) {
         setStep('otp')
+        return
+      }
+      if (data.otpSetupRequired) {
+        setSetup(await api<{ qr: string; secret: string }>('/auth/otp/setup', { method: 'POST' }))
+        setStep('otp-setup')
         return
       }
       setUser(data.user!)
@@ -39,6 +46,64 @@ export default function Login() {
     } finally {
       setBusy(false)
     }
+  }
+
+  const backToCredentials = (
+    <button
+      onClick={() => {
+        setStep('credentials')
+        setCode('')
+        setSetup(null)
+        setError('')
+      }}
+      className="flex items-center gap-1.5 mt-5 text-sm text-text-muted hover:text-text-base transition-theme"
+    >
+      <ArrowLeft size={13} /> Voltar
+    </button>
+  )
+
+  if (step === 'otp-setup' && setup) {
+    return (
+      <AuthLayout
+        title="Ativa a verificação em dois passos"
+        subtitle="Esta conta exige OTP. Configura-o agora para continuar."
+      >
+        <form
+          className="space-y-4"
+          onSubmit={(e: FormEvent) => {
+            e.preventDefault()
+            submit('/auth/otp/setup/confirm', { code })
+          }}
+        >
+          <Alert>{error}</Alert>
+          <ol className="text-sm text-text-muted space-y-1 list-decimal pl-4">
+            <li>Abre uma aplicação autenticadora (Google Authenticator, Microsoft Authenticator, 1Password…).</li>
+            <li>Lê o código QR abaixo.</li>
+            <li>Introduz o código de 6 dígitos que a aplicação mostrar.</li>
+          </ol>
+          <div className="flex flex-col items-center gap-2">
+            <img src={setup.qr} alt="Código QR para configurar o OTP" className="w-44 h-44 rounded-xl border border-border bg-white p-2" />
+            <p className="text-xs text-text-muted text-center break-all">
+              Chave manual: <code className="font-mono text-text-base">{setup.secret}</code>
+            </p>
+          </div>
+          <TextField
+            label="Código"
+            value={code}
+            onChange={setCode}
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={7}
+            required
+            className="tracking-[0.4em] text-center font-mono text-base"
+          />
+          <Button type="submit" block loading={busy} icon={<ShieldCheck size={15} />}>
+            {busy ? 'A verificar...' : 'Ativar e entrar'}
+          </Button>
+        </form>
+        {backToCredentials}
+      </AuthLayout>
+    )
   }
 
   if (step === 'otp') {
@@ -67,16 +132,7 @@ export default function Login() {
             {busy ? 'A verificar...' : 'Verificar'}
           </Button>
         </form>
-        <button
-          onClick={() => {
-            setStep('credentials')
-            setCode('')
-            setError('')
-          }}
-          className="flex items-center gap-1.5 mt-5 text-sm text-text-muted hover:text-text-base transition-theme"
-        >
-          <ArrowLeft size={13} /> Voltar
-        </button>
+        {backToCredentials}
       </AuthLayout>
     )
   }

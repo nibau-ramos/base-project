@@ -1,5 +1,6 @@
 .DS_Store
-data/
+# Docker bind-mount data (see docker-compose.yml); anchored so source folders named "data" are kept
+/sample-project/data/
 node_modules/
 dist/
 .env

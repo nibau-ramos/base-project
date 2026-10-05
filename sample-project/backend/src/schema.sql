@@ -14,6 +14,10 @@ CREATE TABLE IF NOT EXISTS users (
   last_login_at      TIMESTAMPTZ
 );
 
+-- Added after the first release; ALTER keeps existing databases working without a migration tool.
+-- When true the user cannot disable OTP, and must set it up during login if it isn't enabled yet.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_required BOOLEAN NOT NULL DEFAULT FALSE;
+
 CREATE TABLE IF NOT EXISTS password_reset_tokens (
   id         SERIAL PRIMARY KEY,
   user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

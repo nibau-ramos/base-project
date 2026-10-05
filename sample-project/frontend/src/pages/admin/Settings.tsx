@@ -9,6 +9,7 @@ import { extractColorsFromImage, suggestThemeColors } from '../../lib/colorExtra
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { resetColors, setColor, setColors, type ColorKey, type ThemeColors } from '../../store/themeSlice'
 import { Button } from '../../ui/Button'
+import ColorPresets from '../../ui/ColorPresets'
 import { Alert, Spinner } from '../../ui/feedback'
 import { Checkbox, PasswordField, SelectField, TextField } from '../../ui/form'
 import { Card, PageHeader, Tabs } from '../../ui/layout'
@@ -403,10 +404,19 @@ function BrandingSettings() {
               </Button>
             </div>
           )}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {COLOR_ORDER.map((key) => (
-              <ColorCard key={key} colorKey={key} />
-            ))}
+          <div className="space-y-5">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-2.5">Esquemas prontos</p>
+              <ColorPresets />
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-2.5">Personalizar</p>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {COLOR_ORDER.map((key) => (
+                  <ColorCard key={key} colorKey={key} />
+                ))}
+              </div>
+            </div>
           </div>
         </Card>
 

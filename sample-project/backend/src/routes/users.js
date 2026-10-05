@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import { Router } from 'express';
 import { config } from '../config.js';
 import { query } from '../db.js';
-import { welcomeEmail } from '../emails/templates.js';
+import { noticeEmail, welcomeEmail } from '../emails/templates.js';
 import { getBranding } from '../lib/branding.js';
 import {
   canManageRole,
@@ -14,6 +14,7 @@ import {
 } from '../lib/auth.js';
 import { randomToken } from '../lib/crypto.js';
 import { EmailNotConfiguredError, isEmailConfigured, sendSystemEmail } from '../lib/mailer.js';
+import { clearOtp } from '../lib/otp.js';
 import { createResetLink } from '../lib/resetTokens.js';
 
 const router = Router();
@@ -60,8 +61,8 @@ router.post('/', async (req, res) => {
   const hash = await bcrypt.hash(password || randomToken(), 12);
   try {
     const { rows } = await query(
-      'INSERT INTO users (email, name, role, password_hash) VALUES ($1, $2, $3, $4) RETURNING *',
-      [email, name, role, hash],
+      'INSERT INTO users (email, name, role, password_hash, otp_required) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [email, name, role, hash, Boolean(req.body?.otpRequired)],
     );
     res.status(201).json({ user: publicUser(rows[0]) });
   } catch (err) {
@@ -77,19 +78,44 @@ router.put('/:id', async (req, res) => {
   const name = req.body?.name === undefined ? target.name : String(req.body.name).trim();
   const role = req.body?.role ?? target.role;
   const active = req.body?.active ?? target.active;
+  const otpRequired = Boolean(req.body?.otpRequired ?? target.otp_required);
 
   if (!canManageRole(req.user.role, role)) return res.status(400).json({ error: 'Perfil inválido.' });
-  if (target.id === req.user.id && (role !== target.role || !active)) {
-    return res.status(400).json({ error: 'Não pode alterar o seu próprio perfil nem desativar a sua conta.' });
+  if (target.id === req.user.id && (role !== target.role || !active || otpRequired !== target.otp_required)) {
+    return res.status(400).json({ error: 'Não pode alterar o seu próprio perfil, a obrigatoriedade do OTP nem desativar a sua conta.' });
   }
 
-  const { rows } = await query('UPDATE users SET name = $1, role = $2, active = $3 WHERE id = $4 RETURNING *', [
-    name,
-    role,
-    Boolean(active),
-    target.id,
-  ]);
+  // Making OTP mandatory for someone without it ends their sessions, so their next login goes through setup.
+  const forceSetup = otpRequired && !target.otp_required && !target.otp_enabled;
+  const { rows } = await query(
+    `UPDATE users SET name = $1, role = $2, active = $3, otp_required = $4
+       ${forceSetup ? ', token_version = token_version + 1' : ''}
+     WHERE id = $5 RETURNING *`,
+    [name, role, Boolean(active), otpRequired, target.id],
+  );
   res.json({ user: publicUser(rows[0]) });
+});
+
+// For a lost phone: removes the user's OTP and ends their sessions. If OTP is mandatory they set it up
+// again at the next login; otherwise they can log in with just the password and re-enable it in their profile.
+router.post('/:id/otp/reset', async (req, res) => {
+  const target = await loadTarget(req, res);
+  if (!target) return;
+  if (target.id === req.user.id) return res.status(400).json({ error: 'Gira o seu próprio OTP no seu perfil.' });
+
+  const updated = await clearOtp(target.id, { bumpSessions: true });
+  sendSystemEmail(
+    target.email,
+    noticeEmail({
+      user: target,
+      heading: 'A verificação em dois passos foi reposta',
+      message: target.otp_required
+        ? 'Um administrador repôs o OTP da sua conta. No próximo login vai ser-lhe pedido para o configurar de novo.'
+        : 'Um administrador removeu o OTP da sua conta. Pode voltar a ativá-lo no seu perfil.',
+    }),
+  ).catch((err) => console.warn('OTP reset notice not sent:', err.message));
+
+  res.json({ user: publicUser(updated), message: `OTP de ${target.email} reposto.` });
 });
 
 router.delete('/:id', async (req, res) => {

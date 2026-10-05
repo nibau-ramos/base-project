@@ -1,4 +1,4 @@
-import { Mail, Trash2 } from 'lucide-react'
+import { Mail, RotateCcw, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, ApiError, errorMessage } from '../../lib/api'
@@ -55,6 +55,54 @@ export function WelcomeModal({ user, onClose, onSent }: { user: User; onClose: (
         checked={includeReset}
         onChange={setIncludeReset}
       />
+    </Modal>
+  )
+}
+
+export function ResetOtpModal({
+  user,
+  onClose,
+  onReset,
+}: {
+  user: User
+  onClose: () => void
+  onReset: (user: User, message: string) => void
+}) {
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function reset() {
+    setError('')
+    setBusy(true)
+    try {
+      const data = await api<{ user: User; message: string }>(`/users/${user.id}/otp/reset`, { method: 'POST' })
+      onReset(data.user, data.message)
+    } catch (err) {
+      setError(errorMessage(err))
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Modal
+      title="Repor OTP"
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="subtle" onClick={onClose}>Cancelar</Button>
+          <Button variant="destructive" onClick={reset} loading={busy} icon={<RotateCcw size={15} />}>Repor OTP</Button>
+        </>
+      }
+    >
+      <Alert>{error}</Alert>
+      <p className="text-sm text-text-muted">
+        O OTP de <strong className="text-text-base">{user.name || user.email}</strong> vai ser removido e as sessões
+        abertas terminam.{' '}
+        {user.otpRequired
+          ? 'Como o OTP é obrigatório, no próximo login vai ter de o configurar de novo.'
+          : 'No próximo login entra só com a password e pode voltar a ativar o OTP no perfil.'}
+      </p>
+      <p className="text-xs text-text-muted">A pessoa recebe um e-mail a avisar desta alteração.</p>
     </Modal>
   )
 }

@@ -1,4 +1,4 @@
-import { KeyRound, ShieldCheck, ShieldOff } from 'lucide-react'
+import { KeyRound, Lock, ShieldCheck, ShieldOff } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { api, errorMessage } from '../../lib/api'
 import { ROLE_LABELS, useAuth, useCurrentUser, type User } from '../../lib/auth'
@@ -80,10 +80,15 @@ function Otp() {
     }
   }
 
-  const status = user.otpEnabled ? (
-    <Badge variant="success" icon={<ShieldCheck size={12} />}>Ativo</Badge>
-  ) : (
-    <Badge variant="warning">Inativo</Badge>
+  const status = (
+    <div className="flex items-center gap-1.5 flex-wrap justify-end">
+      {user.otpRequired && <Badge variant="primary" icon={<Lock size={12} />}>Obrigatório</Badge>}
+      {user.otpEnabled ? (
+        <Badge variant="success" icon={<ShieldCheck size={12} />}>Ativo</Badge>
+      ) : (
+        <Badge variant="warning">Inativo</Badge>
+      )}
+    </div>
   )
 
   return (
@@ -92,7 +97,12 @@ function Otp() {
         <Alert>{error}</Alert>
         {message && <Alert type="success">{message}</Alert>}
 
-        {user.otpEnabled ? (
+        {user.otpEnabled && user.otpRequired ? (
+          <Alert type="info" title="OTP obrigatório">
+            Um administrador definiu que esta conta tem de usar verificação em dois passos, por isso não pode ser
+            desativada. Se perderes o acesso à aplicação autenticadora, pede a um administrador para repor o teu OTP.
+          </Alert>
+        ) : user.otpEnabled ? (
           <form
             className="space-y-4"
             onSubmit={(e) => {

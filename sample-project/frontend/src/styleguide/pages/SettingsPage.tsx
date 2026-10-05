@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Upload, RotateCcw, Check, X, RefreshCw } from 'lucide-react'
 import PageHeader from '../shared/PageHeader'
+import ColorPresets from '../../ui/ColorPresets'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { setColor, setColors, resetColors, setLogoUrl, type ColorKey } from '../../store/themeSlice'
 import { extractColorsFromImage, suggestThemeColors } from '../../lib/colorExtraction'
@@ -348,6 +349,11 @@ export default function SettingsPage() {
               <RotateCcw size={12} /> Repor padrão
             </button>
           </div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-2.5">Esquemas prontos</p>
+          <div className="mb-6">
+            <ColorPresets />
+          </div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-2.5">Personalizar</p>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {COLOR_ORDER.map((key) => (
               <ColorCard key={key} colorKey={key} />
