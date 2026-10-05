@@ -5,8 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Repository layout
 
 - `base-specs/`: the ENSO base specification that every ENSO project must satisfy.
-  - `Especificacao_Base_ENSO.pdf` / `.docx`: the specification in Portuguese. Both files have the same content.
-  - `gherkin-base-enso/*.feature`: Gherkin acceptance criteria (`# language: pt`, so keywords are `Funcionalidade`, `Cenário`, `Dado`, `Quando`, `Então` and so on), numbered by area (01 infrastructure through 10 e-mails). Scenarios tagged `@opcional` (fingerprint login, super administrator) are nice-to-haves. These files are the source of truth for the base requirements.
+  - `Especificacao_Base_ENSO.pdf` / `.docx`: the specification in Portuguese. Both files have the same content. Edit the DOCX, then regenerate the PDF with `/Applications/LibreOffice.app/Contents/MacOS/soffice --headless --convert-to pdf`.
+  - `gherkin-base-enso/*.feature`: Gherkin acceptance criteria. They use `# language: pt`, so keywords must stay in Portuguese (`Funcionalidade`, `Contexto`, `Cenário`, `Esquema do Cenário`, `Exemplos`, `Dado`, `Quando`, `Então`, `E`, `Mas`). Files are numbered by area, 01 infrastructure through 10 e-mails, plus `11_mfa.feature` for two-step verification (TOTP and fingerprint). These files are the source of truth for the base requirements. When a decision changes the base product, update the matching `.feature` and the DOCX/PDF. Check syntax by parsing with `@cucumber/gherkin` using the `pt` dialect.
 - `sample-project/`: a reference implementation of the base spec, showing what a new project starts with. All sample code stays inside this folder.
 
 ## sample-project commands
